@@ -1,0 +1,265 @@
+'use strict';
+
+// ── Auth state ────────────────────────────────────────────────────────────────
+let currentUser = null;
+let authToken   = null;
+
+// ── Boot: check stored token ──────────────────────────────────────────────────
+(async function initAuth() {
+  const saved = localStorage.getItem('crm_token');
+  if (saved) {
+    try {
+      const res = await apiFetch('/api/me', 'GET', null, saved);
+      if (res.user) {
+        authToken   = saved;
+        currentUser = res.user;
+        showApp();
+        return;
+      }
+    } catch { /* invalid token */ }
+    localStorage.removeItem('crm_token');
+  }
+  showAuthScreen('login');
+})();
+
+// ── Show/hide ─────────────────────────────────────────────────────────────────
+function showAuthScreen(mode) {
+  const el = document.getElementById('auth-screen');
+  el.classList.remove('hidden');
+  el.innerHTML = buildHTML(mode);
+  wireForm(mode);
+}
+
+function showApp() {
+  document.getElementById('auth-screen').classList.add('hidden');
+  renderUserUI();
+  if (typeof bootCRM === 'function') bootCRM();
+}
+
+// ── Build HTML ────────────────────────────────────────────────────────────────
+function buildHTML(mode) {
+  const isLogin = mode === 'login';
+  return `
+    <div class="auth-card">
+
+      <div class="auth-logo">
+        <div class="auth-logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <polyline points="9 22 9 12 15 12 15 22" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <div class="auth-logo-text">Furniture CRM</div>
+          <div class="auth-logo-sub">Client Relationship Management</div>
+        </div>
+      </div>
+
+      <div class="auth-title">${isLogin ? 'Welcome back' : 'Create your account'}</div>
+      <div class="auth-subtitle">${isLogin ? 'Sign in with your email to continue' : 'Start managing your clients in seconds'}</div>
+
+      <div id="auth-error" class="auth-error hidden">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span id="auth-error-text"></span>
+      </div>
+
+      <form class="auth-form" id="auth-form" novalidate>
+
+        ${!isLogin ? `
+        <div class="auth-field">
+          <label>Full Name <span class="auth-optional">(optional)</span></label>
+          <div class="auth-input-wrap">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            <input class="auth-input" type="text" name="displayName" placeholder="e.g. Giorgi Beridze" autocomplete="name" />
+          </div>
+        </div>` : ''}
+
+        <div class="auth-field">
+          <label>Email Address</label>
+          <div class="auth-input-wrap">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <input class="auth-input" type="email" name="email"
+              placeholder="${isLogin ? 'your@email.com' : 'your@email.com'}"
+              autocomplete="email" required />
+          </div>
+        </div>
+
+        <div class="auth-field">
+          <label>Password</label>
+          <div class="auth-input-wrap">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input class="auth-input" type="password" name="password" id="auth-pwd"
+              placeholder="${isLogin ? 'Enter your password' : 'At least 6 characters'}"
+              autocomplete="${isLogin ? 'current-password' : 'new-password'}" required />
+            <button type="button" class="pwd-toggle" id="pwd-toggle" title="Show / hide">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="eye-icon">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          ${!isLogin ? `<div class="auth-hint">Minimum 6 characters</div>` : ''}
+        </div>
+
+        <button type="submit" class="auth-btn" id="auth-submit">
+          ${isLogin ? 'Sign In' : 'Create Account'}
+        </button>
+
+      </form>
+
+      <div class="auth-switch">
+        ${isLogin
+          ? `Don't have an account? <button class="auth-switch-link" id="auth-toggle">Sign up free</button>`
+          : `Already have an account? <button class="auth-switch-link" id="auth-toggle">Sign in</button>`}
+      </div>
+
+    </div>`;
+}
+
+// ── Wire form ─────────────────────────────────────────────────────────────────
+function wireForm(mode) {
+  const isLogin = mode === 'login';
+
+  // show/hide password
+  document.getElementById('pwd-toggle').addEventListener('click', () => {
+    const inp  = document.getElementById('auth-pwd');
+    const icon = document.getElementById('eye-icon');
+    const show = inp.type === 'password';
+    inp.type   = show ? 'text' : 'password';
+    icon.innerHTML = show
+      ? `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`
+      : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+  });
+
+  // switch login ↔ register
+  document.getElementById('auth-toggle').addEventListener('click', () => {
+    showAuthScreen(isLogin ? 'register' : 'login');
+  });
+
+  // submit
+  document.getElementById('auth-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const form   = e.target;
+    const btn    = document.getElementById('auth-submit');
+    const errBox = document.getElementById('auth-error');
+    const errTxt = document.getElementById('auth-error-text');
+
+    // client-side validation
+    const email    = form.email.value.trim();
+    const password = form.password.value;
+    if (!email || !email.includes('@')) {
+      return showError(errBox, errTxt, 'Please enter a valid email address');
+    }
+    if (password.length < 6) {
+      return showError(errBox, errTxt, 'Password must be at least 6 characters');
+    }
+
+    errBox.classList.add('hidden');
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span>${isLogin ? 'Signing in…' : 'Creating account…'}`;
+
+    const body = { email, password };
+    if (!isLogin) body.displayName = (form.displayName?.value || '').trim();
+
+    try {
+      const res   = await apiFetch(isLogin ? '/api/login' : '/api/register', 'POST', body);
+      authToken   = res.token;
+      currentUser = res.user;
+      localStorage.setItem('crm_token', authToken);
+      showApp();
+    } catch (err) {
+      const msg = err.message === 'Failed to fetch'
+        ? 'Cannot connect to server. Open the app via http://localhost:3456 (not as a file).'
+        : (err.message || 'Something went wrong');
+      showError(errBox, errTxt, msg);
+      btn.disabled = false;
+      btn.innerHTML = isLogin ? 'Sign In' : 'Create Account';
+    }
+  });
+}
+
+function showError(box, txt, msg) {
+  txt.textContent = msg;
+  box.classList.remove('hidden');
+  // shake animation
+  box.style.animation = 'none';
+  box.offsetHeight;
+  box.style.animation = 'shake .3s ease';
+}
+
+// ── Render user info in sidebar ───────────────────────────────────────────────
+function renderUserUI() {
+  if (!currentUser) return;
+  const name     = currentUser.displayName || currentUser.email;
+  const initials = name.split(/[\s@]+/).map(w => w[0]).join('').slice(0,2).toUpperCase();
+
+  // sidebar user block
+  const footer = document.querySelector('.sidebar-footer');
+  if (footer) {
+    let menu = document.getElementById('user-menu');
+    if (!menu) {
+      menu = document.createElement('div');
+      menu.id = 'user-menu';
+      menu.className = 'user-menu';
+      footer.parentNode.insertBefore(menu, footer);
+    }
+    menu.innerHTML = `
+      <div class="user-avatar">${initials}</div>
+      <div class="user-info">
+        <div class="user-name">${esc2(name)}</div>
+        <div class="user-role">${esc2(currentUser.email)}</div>
+      </div>
+      <button class="logout-btn" id="logout-btn" title="Sign out">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>`;
+    document.getElementById('logout-btn').addEventListener('click', logout);
+  }
+
+  // mobile topbar avatar
+  const topbar = document.querySelector('.mobile-topbar');
+  if (topbar && !document.getElementById('topbar-user')) {
+    const av = document.createElement('div');
+    av.id = 'topbar-user'; av.className = 'topbar-user';
+    av.textContent = initials;
+    av.title = 'Sign out';
+    av.addEventListener('click', logout);
+    topbar.appendChild(av);
+  }
+}
+
+function logout() {
+  if (!confirm('Sign out of Furniture CRM?')) return;
+  localStorage.removeItem('crm_token');
+  authToken = null; currentUser = null;
+  showAuthScreen('login');
+}
+
+// ── API helper ────────────────────────────────────────────────────────────────
+async function apiFetch(url, method = 'GET', body = null, token = null) {
+  const headers = { 'Content-Type': 'application/json' };
+  const tok = token || authToken;
+  if (tok) headers['Authorization'] = `Bearer ${tok}`;
+  const res  = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+function esc2(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+window.apiFetch    = apiFetch;
+window.getAuthUser = () => currentUser;
+window.getToken    = () => authToken;
