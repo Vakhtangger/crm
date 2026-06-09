@@ -1006,7 +1006,7 @@ async function loadActivityFeed() {
   const feed = document.getElementById('activity-feed');
   if (!feed) return;
   try {
-    const items = await apiFetch('/api/activity?limit=20');
+    const items = await apiFetch('/api/activity?limit=10');
     if (!items.length) {
       feed.innerHTML = `<div class="activity-empty">No activity yet — changes will appear here</div>`;
       return;
