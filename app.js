@@ -40,6 +40,7 @@ async function bootCRM() {
   renderDashboard();
   renderPipeline();
   renderKanban();
+  initActivityFilters();
   loadActivityFeed();
   if (typeof initTasks === 'function') initTasks();
   startAutoSync();
@@ -1002,16 +1003,32 @@ function formatTimeAgo(date) {
 }
 
 // ── Activity Feed ─────────────────────────────────────────────────────────────
+let _activityDays = 3; // default: last 3 days
+
+function initActivityFilters() {
+  document.querySelectorAll('.act-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.act-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _activityDays = parseInt(btn.dataset.days);
+      loadActivityFeed();
+    });
+  });
+}
+
 async function loadActivityFeed() {
   const feed = document.getElementById('activity-feed');
   if (!feed) return;
   try {
-    const items = await apiFetch('/api/activity?limit=10');
-    if (!items.length) {
-      feed.innerHTML = `<div class="activity-empty">No activity yet — changes will appear here</div>`;
+    const items = await apiFetch('/api/activity?limit=200');
+    // filter by selected days
+    const cutoff = _activityDays > 0 ? Date.now() - _activityDays * 86400000 : 0;
+    const filtered_items = items.filter(a => new Date(a.createdAt).getTime() >= cutoff).slice(0, 10);
+    if (!filtered_items.length) {
+      feed.innerHTML = `<div class="activity-empty">No activity in this period</div>`;
       return;
     }
-    feed.innerHTML = items.map(a => {
+    feed.innerHTML = filtered_items.map(a => {
       let icon = '📝', cls = 'act-note', text = '';
       if (a.action === 'status_change') {
         icon = '🔄'; cls = 'act-status';
@@ -1035,6 +1052,7 @@ async function loadActivityFeed() {
           </div>
         </div>`;
     }).join('');
+    feed.innerHTML += `<div class="activity-count">Showing ${filtered_items.length} entr${filtered_items.length===1?'y':'ies'}</div>`;
   } catch(e) { console.warn('Activity feed error:', e); }
 }
 
