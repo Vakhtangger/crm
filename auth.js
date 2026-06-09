@@ -46,14 +46,9 @@ function buildHTML(mode) {
     <div class="auth-card">
 
       <div class="auth-logo">
-        <div class="auth-logo-mark">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            <polyline points="9 22 9 12 15 12 15 22" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-          </svg>
-        </div>
+        <img src="logo.svg" alt="Zewood" class="auth-logo-img" />
         <div>
-          <div class="auth-logo-text">Furniture CRM</div>
+          <div class="auth-logo-text">Zewood CRM</div>
           <div class="auth-logo-sub">Client Relationship Management</div>
         </div>
       </div>
@@ -264,7 +259,7 @@ function renderUserUI() {
 }
 
 function logout() {
-  if (!confirm('Sign out of Furniture CRM?')) return;
+  if (!confirm('Sign out of Zewood CRM?')) return;
   localStorage.removeItem('crm_token');
   authToken = null; currentUser = null;
   showAuthScreen('login');

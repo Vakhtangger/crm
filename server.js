@@ -594,14 +594,14 @@ async function sendTaskInvite(task) {
       tls: { rejectUnauthorized: IS_PROD },
     });
     await transporter.sendMail({
-      from:    `"Furniture CRM" <${smtp.user}>`,
+      from:    `"Zewood CRM" <${smtp.user}>`,
       to:      task.assigneeEmail,
       subject: `📋 Task assigned: ${task.title}`,
       html: `
         <div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e8e6e0">
           <div style="background:linear-gradient(135deg,#18a558,#0f7a40);padding:28px 32px">
             <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.03em">📋 New Task Assigned</div>
-            <div style="color:#86efac;font-size:13px;margin-top:4px">Furniture CRM</div>
+            <div style="color:#86efac;font-size:13px;margin-top:4px">Zewood CRM</div>
           </div>
           <div style="padding:28px 32px">
             <p style="color:#50504a;font-size:13px;margin:0 0 20px">
@@ -630,7 +630,7 @@ async function sendTaskInvite(task) {
 }
 
 function buildICS(task) {
-  const uid = task.id + '@furniture-crm';
+  const uid = task.id + '@zewood-crm';
   const now = fmtDT(new Date());
   let dtStart, dtEnd;
   if (task.dueDate) {
@@ -705,7 +705,7 @@ process.on('unhandledRejection', err => {
 app.listen(PORT, () => {
   console.log(`
   ╔══════════════════════════════════════════╗
-  ║   🪵  Furniture CRM  v3.1                ║
+  ║   🪵  Zewood CRM  v3.1                ║
   ║   http://localhost:${PORT}               ║
   ║   ENV: ${NODE_ENV.padEnd(33)}║
   ╚══════════════════════════════════════════╝
