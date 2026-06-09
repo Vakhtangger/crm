@@ -1256,3 +1256,31 @@ tbody td { padding: 10px 13px; vertical-align: middle; }
 /* Selected table rows */
 tr.row-selected td { background: #f0faf4; }
 
+
+/* ══════════════════════════════════════════════
+   ROLE BADGES
+══════════════════════════════════════════════ */
+.role-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 5px;
+  vertical-align: middle;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.role-badge.role-admin {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+}
+.role-badge.role-member {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+/* Hide admin-only buttons from members */
+body.role-member .admin-only { display: none !important; }

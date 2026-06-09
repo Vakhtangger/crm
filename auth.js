@@ -32,6 +32,9 @@ function showAuthScreen(mode) {
 
 function showApp() {
   document.getElementById('auth-screen').classList.add('hidden');
+  // Apply role class to body so CSS can hide admin-only elements
+  document.body.classList.remove('role-admin', 'role-member');
+  document.body.classList.add('role-' + (currentUser?.role || 'member'));
   renderUserUI();
   if (typeof bootCRM === 'function') bootCRM();
 }
@@ -76,6 +79,16 @@ function buildHTML(mode) {
             </svg>
             <input class="auth-input" type="text" name="displayName" placeholder="e.g. Giorgi Beridze" autocomplete="name" />
           </div>
+        </div>
+        <div class="auth-field">
+          <label>Admin Code <span class="auth-optional">(leave blank if you are a regular member)</span></label>
+          <div class="auth-input-wrap">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input class="auth-input" type="password" name="adminCode" placeholder="Enter admin code to get admin access" autocomplete="off" />
+          </div>
+          <div class="auth-hint">Only enter this if you are an admin. Regular members leave this empty.</div>
         </div>` : ''}
 
         <div class="auth-field">
@@ -167,7 +180,10 @@ function wireForm(mode) {
     btn.innerHTML = `<span class="spinner"></span>${isLogin ? 'Signing in…' : 'Creating account…'}`;
 
     const body = { email, password };
-    if (!isLogin) body.displayName = (form.displayName?.value || '').trim();
+    if (!isLogin) {
+      body.displayName = (form.displayName?.value || '').trim();
+      body.adminCode   = (form.adminCode?.value || '').trim();
+    }
 
     try {
       const res   = await apiFetch(isLogin ? '/api/login' : '/api/register', 'POST', body);
@@ -215,7 +231,10 @@ function renderUserUI() {
       <div class="user-avatar">${initials}</div>
       <div class="user-info">
         <div class="user-name">${esc2(name)}</div>
-        <div class="user-role">${esc2(currentUser.email)}</div>
+        <div class="user-role">
+          ${esc2(currentUser.email)}
+          <span class="role-badge role-${currentUser.role || 'member'}">${currentUser.role === 'admin' ? '★ Admin' : 'Member'}</span>
+        </div>
       </div>
       <button class="logout-btn" id="logout-btn" title="Sign out">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -190,10 +190,15 @@ function auth(req, res, next) {
 
 function makeToken(u) {
   return jwt.sign(
-    { id: u.id, email: u.email, displayName: u.displayName },
+    { id: u.id, email: u.email, displayName: u.displayName, role: u.role || 'member' },
     JWT_SECRET,
     { expiresIn: JWT_TTL }
   );
+}
+
+function requireAdmin(req, res, next) {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  next();
 }
 
 // ── Input helpers ─────────────────────────────────────────────────────────────
@@ -211,6 +216,7 @@ app.post('/api/register', authLimiter, async (req, res) => {
     const email       = sanitizeStr(req.body?.email, 254).toLowerCase();
     const password    = sanitizeStr(req.body?.password, 128);
     const displayName = sanitizeStr(req.body?.displayName, 80);
+    const adminCode   = sanitizeStr(req.body?.adminCode, 64);
 
     if (!email || !password)     return res.status(400).json({ error: 'Email and password are required' });
     if (!validateEmail(email))   return res.status(400).json({ error: 'Please enter a valid email address' });
@@ -220,20 +226,37 @@ app.post('/api/register', authLimiter, async (req, res) => {
     if (db.get('users').find({ email }).value())
       return res.status(409).json({ error: 'An account with this email already exists' });
 
+    // First ever user becomes admin automatically
+    const isFirst = db.get('users').value().length === 0;
+    const ADMIN_CODE = process.env.ADMIN_CODE || '';
+    const role = (isFirst || (ADMIN_CODE && adminCode === ADMIN_CODE)) ? 'admin' : 'member';
+
     const user = {
       id:          uuidv4(),
       email,
       displayName: displayName || email.split('@')[0],
       hash:        await bcrypt.hash(password, 12),
+      role,
       createdAt:   new Date().toISOString(),
     };
     db.get('users').push(user).write();
-    console.log(`[register] new user: ${email}`);
+    console.log(`[register] new user: ${email} role: ${role}`);
     res.json({ token: makeToken(user), user: safeUser(user) });
   } catch (e) {
     console.error('[register] error:', e.message);
     res.status(500).json({ error: 'Registration failed. Please try again.' });
   }
+});
+
+// Admin: update user role
+app.patch('/api/users/:id/role', auth, requireAdmin, (req, res) => {
+  const role = sanitizeStr(req.body?.role, 20);
+  if (!['admin', 'member'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
+  const user = db.get('users').find({ id: req.params.id }).value();
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  db.get('users').find({ id: req.params.id }).assign({ role }).write();
+  logActivity('user_role_changed', req.user, { targetEmail: user.email, newRole: role });
+  res.json({ ok: true });
 });
 
 app.post('/api/login', authLimiter, async (req, res) => {
@@ -275,7 +298,7 @@ app.get('/api/me', auth, (req, res) => {
 
 // Never send hash or internal fields to client
 function safeUser(u) {
-  return { id: u.id, email: u.email, displayName: u.displayName };
+  return { id: u.id, email: u.email, displayName: u.displayName, role: u.role || 'member' };
 }
 
 // ── Users list ────────────────────────────────────────────────────────────────
