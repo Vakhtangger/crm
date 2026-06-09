@@ -1248,6 +1248,7 @@ async function loadUsersPanel() {
   }
 }
 
+window.changeUserRole = changeUserRole;
 async function changeUserRole(userId, newRole, email) {
   const action = newRole === 'admin' ? 'make admin' : 'remove admin from';
   if (!confirm(`Are you sure you want to ${action} ${email}?`)) return;
