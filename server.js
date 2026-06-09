@@ -55,6 +55,19 @@ db.defaults({ users: [], crm: [], tasks: [], smtp: {}, notes: [], activity: [] }
   }
 })();
 
+// ── Migrate: ensure at least one admin exists ─────────────────────────────────
+(function migrateRoles() {
+  const users = db.get('users').value();
+  if (!users || users.length === 0) return;
+  const hasAdmin = users.some(u => u.role === 'admin');
+  if (!hasAdmin) {
+    // Make the first registered user an admin
+    const first = users[0];
+    db.get('users').find({ id: first.id }).assign({ role: 'admin' }).write();
+    console.log(`  ✅ Role migration: ${first.email} set as admin`);
+  }
+})();
+
 // ── Express ───────────────────────────────────────────────────────────────────
 const app = express();
 
@@ -181,7 +194,11 @@ function auth(req, res, next) {
   const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
   if (!token) return res.status(401).json({ error: 'Not authenticated' });
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET);
+    // Always read role from DB (not token) so role changes take effect immediately
+    const dbUser = db.get('users').find({ id: payload.id }).value();
+    if (!dbUser) return res.status(401).json({ error: 'User not found. Please sign in again.' });
+    req.user = { ...payload, role: dbUser.role || 'member' };
     next();
   } catch {
     res.status(401).json({ error: 'Invalid or expired session. Please sign in again.' });
@@ -294,6 +311,26 @@ app.get('/api/me', auth, (req, res) => {
   const user = db.get('users').find({ id: req.user.id }).value();
   if (!user) return res.status(401).json({ error: 'User not found' });
   res.json({ user: safeUser(user) });
+});
+
+// Change password
+app.post('/api/me/password', auth, async (req, res) => {
+  try {
+    const currentPassword = sanitizeStr(req.body?.currentPassword, 128);
+    const newPassword     = sanitizeStr(req.body?.newPassword, 128);
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Both fields are required' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    const user = db.get('users').find({ id: req.user.id }).value();
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const match = await bcrypt.compare(currentPassword, user.hash);
+    if (!match) return res.status(401).json({ error: 'Current password is incorrect' });
+    const newHash = await bcrypt.hash(newPassword, 12);
+    db.get('users').find({ id: req.user.id }).assign({ hash: newHash }).write();
+    logActivity('password_change', req.user, {});
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: 'Failed to change password' });
+  }
 });
 
 // Never send hash or internal fields to client

@@ -236,6 +236,11 @@ function renderUserUI() {
           <span class="role-badge role-${currentUser.role || 'member'}">${currentUser.role === 'admin' ? '★ Admin' : 'Member'}</span>
         </div>
       </div>
+      <button class="pwd-change-btn" id="pwd-change-btn" title="Change password">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </button>
       <button class="logout-btn" id="logout-btn" title="Sign out">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -243,6 +248,7 @@ function renderUserUI() {
         </svg>
       </button>`;
     document.getElementById('logout-btn').addEventListener('click', logout);
+    document.getElementById('pwd-change-btn').addEventListener('click', openPasswordModal);
   }
 
   // mobile topbar avatar
@@ -282,3 +288,80 @@ function esc2(s) {
 window.apiFetch    = apiFetch;
 window.getAuthUser = () => currentUser;
 window.getToken    = () => authToken;
+
+// ── Change Password Modal ─────────────────────────────────────────────────────
+function openPasswordModal() {
+  // Remove existing modal if any
+  const existing = document.getElementById('pwd-modal-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'pwd-modal-overlay';
+  overlay.className = 'pwd-modal-overlay';
+  overlay.innerHTML = `
+    <div class="pwd-modal">
+      <div class="pwd-modal-header">
+        <h3>Change Password</h3>
+        <button class="pwd-modal-close" id="pwd-modal-close">✕</button>
+      </div>
+      <div id="pwd-modal-error" class="pwd-modal-error hidden"></div>
+      <div id="pwd-modal-success" class="pwd-modal-success hidden">✅ Password changed successfully!</div>
+      <div class="pwd-modal-body">
+        <div class="pwd-field">
+          <label>Current Password</label>
+          <input type="password" id="pwd-current" placeholder="Enter current password" class="pwd-input" />
+        </div>
+        <div class="pwd-field">
+          <label>New Password</label>
+          <input type="password" id="pwd-new" placeholder="At least 6 characters" class="pwd-input" />
+        </div>
+        <div class="pwd-field">
+          <label>Confirm New Password</label>
+          <input type="password" id="pwd-confirm" placeholder="Repeat new password" class="pwd-input" />
+        </div>
+        <button class="pwd-submit-btn" id="pwd-submit-btn">Change Password</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  document.getElementById('pwd-modal-close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  document.getElementById('pwd-submit-btn').addEventListener('click', async () => {
+    const current  = document.getElementById('pwd-current').value;
+    const newPwd   = document.getElementById('pwd-new').value;
+    const confirm  = document.getElementById('pwd-confirm').value;
+    const errEl    = document.getElementById('pwd-modal-error');
+    const successEl= document.getElementById('pwd-modal-success');
+    const btn      = document.getElementById('pwd-submit-btn');
+
+    errEl.classList.add('hidden');
+    successEl.classList.add('hidden');
+
+    if (!current || !newPwd || !confirm) {
+      errEl.textContent = 'Please fill in all fields'; errEl.classList.remove('hidden'); return;
+    }
+    if (newPwd.length < 6) {
+      errEl.textContent = 'New password must be at least 6 characters'; errEl.classList.remove('hidden'); return;
+    }
+    if (newPwd !== confirm) {
+      errEl.textContent = 'New passwords do not match'; errEl.classList.remove('hidden'); return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Changing...';
+    try {
+      await apiFetch('/api/me/password', 'POST', { currentPassword: current, newPassword: newPwd });
+      successEl.classList.remove('hidden');
+      document.getElementById('pwd-current').value = '';
+      document.getElementById('pwd-new').value = '';
+      document.getElementById('pwd-confirm').value = '';
+      setTimeout(() => overlay.remove(), 2000);
+    } catch(e) {
+      errEl.textContent = e.message || 'Failed to change password';
+      errEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Change Password';
+    }
+  });
+}

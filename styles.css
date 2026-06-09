@@ -1377,3 +1377,96 @@ body.role-member .admin-only { display: none !important; }
   color: var(--text-3, #aaa);
   padding: 8px 0 2px;
 }
+
+/* ══════════════════════════════════════════════
+   PASSWORD CHANGE MODAL
+══════════════════════════════════════════════ */
+.pwd-change-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-3, #aaa);
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: color .15s, background .15s;
+  margin-right: 2px;
+}
+.pwd-change-btn:hover { color: var(--green, #18a558); background: var(--bg-2, #f0fdf4); }
+
+.pwd-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.pwd-modal {
+  background: white;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  overflow: hidden;
+}
+.pwd-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border, #eee);
+}
+.pwd-modal-header h3 { margin: 0; font-size: 16px; color: var(--text-1, #111); }
+.pwd-modal-close {
+  background: none; border: none; cursor: pointer;
+  font-size: 16px; color: var(--text-3, #aaa); padding: 4px 8px; border-radius: 6px;
+}
+.pwd-modal-close:hover { background: var(--bg-2, #f5f5f5); color: var(--text-1, #111); }
+.pwd-modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.pwd-field { display: flex; flex-direction: column; gap: 5px; }
+.pwd-field label { font-size: 12px; font-weight: 600; color: var(--text-2, #555); }
+.pwd-input {
+  padding: 9px 12px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .15s;
+}
+.pwd-input:focus { border-color: var(--green, #18a558); }
+.pwd-submit-btn {
+  background: var(--green, #18a558);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background .15s;
+}
+.pwd-submit-btn:hover { background: var(--green-dark, #0f7a40); }
+.pwd-submit-btn:disabled { opacity: .6; cursor: not-allowed; }
+.pwd-modal-error {
+  margin: 0 20px;
+  padding: 10px 14px;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-top: 12px;
+}
+.pwd-modal-success {
+  margin: 0 20px;
+  padding: 10px 14px;
+  background: #dcfce7;
+  color: #16a34a;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-top: 12px;
+}
