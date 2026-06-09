@@ -86,6 +86,12 @@
           </span>
           <span class="nav-label">Company Lookup</span>
         </a>
+        <a href="#" class="nav-item admin-only" data-view="users">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </span>
+          <span class="nav-label">Manage Users</span>
+        </a>
       </nav>
 
       <div class="sidebar-section-label" style="margin-top:auto">Data</div>
@@ -95,7 +101,7 @@
           Import Excel
           <input type="file" id="excel-upload" accept=".xlsx,.xls" style="display:none" />
         </label>
-        <button class="sidebar-action-btn" id="btn-export-excel">
+        <button class="sidebar-action-btn admin-only" id="btn-export-excel">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export CSV
         </button>
@@ -294,6 +300,19 @@
         <div id="lookup-result"></div>
       </section>
 
+      <!-- USERS MANAGEMENT (admin only) -->
+      <section id="view-users" class="view">
+        <div class="page-header">
+          <div>
+            <h1>Manage Users</h1>
+            <p class="subtitle">View all team members and change their roles</p>
+          </div>
+        </div>
+        <div id="users-list" class="users-list">
+          <p style="color:var(--text-3)">Loading...</p>
+        </div>
+      </section>
+
     </main>
   </div>
 
@@ -433,7 +452,7 @@
       <option>Rejected</option>
     </select>
     <button class="bulk-btn" id="bulk-pipeline">⭐ Pipeline</button>
-    <button class="bulk-btn" id="bulk-export-sel">⬇ Export</button>
+    <button class="bulk-btn admin-only" id="bulk-export-sel">⬇ Export</button>
     <div class="bulk-sep"></div>
     <button class="bulk-cancel" id="bulk-cancel" title="Deselect all">✕</button>
   </div>

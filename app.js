@@ -81,6 +81,8 @@ function navigateTo(view) {
   // views
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById(`view-${view}`).classList.add('active');
+  // load users panel when navigating to it
+  if (view === 'users') loadUsersPanel();
   // close sidebar on mobile
   closeSidebar();
 }
@@ -1177,4 +1179,65 @@ function exportXlsx(data, cols, filename) {
   const wb  = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Companies');
   XLSX.writeFile(wb, `${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ── Users Management Panel ────────────────────────────────────────────────────
+async function loadUsersPanel() {
+  const container = document.getElementById('users-list');
+  if (!container) return;
+  container.innerHTML = '<p style="color:var(--text-3)">Loading...</p>';
+  try {
+    const users = await apiFetch('/api/users');
+    const me = window.getAuthUser?.();
+    container.innerHTML = `
+      <table class="users-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${users.map(u => `
+            <tr>
+              <td>
+                <div class="users-avatar">${(u.displayName||u.email)[0].toUpperCase()}</div>
+                ${esc(u.displayName || '—')}
+              </td>
+              <td>${esc(u.email)}</td>
+              <td>
+                <span class="role-badge role-${u.role||'member'}">
+                  ${u.role === 'admin' ? '★ Admin' : 'Member'}
+                </span>
+              </td>
+              <td>
+                ${u.id === me?.id
+                  ? '<span style="color:var(--text-3);font-size:12px">You</span>'
+                  : u.role === 'admin'
+                    ? `<button class="btn-role-change" onclick="changeUserRole('${u.id}','member','${esc(u.email)}')">Remove Admin</button>`
+                    : `<button class="btn-role-change btn-make-admin" onclick="changeUserRole('${u.id}','admin','${esc(u.email)}')">Make Admin</button>`
+                }
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  } catch(e) {
+    container.innerHTML = `<p style="color:red">Failed to load users: ${e.message}</p>`;
+  }
+}
+
+async function changeUserRole(userId, newRole, email) {
+  const action = newRole === 'admin' ? 'make admin' : 'remove admin from';
+  if (!confirm(`Are you sure you want to ${action} ${email}?`)) return;
+  try {
+    await apiFetch(`/api/users/${userId}/role`, 'PATCH', { role: newRole });
+    toast(`✅ ${email} is now ${newRole === 'admin' ? 'an Admin' : 'a Member'}`);
+    loadUsersPanel();
+  } catch(e) {
+    toast(`❌ Failed: ${e.message}`);
+  }
 }
