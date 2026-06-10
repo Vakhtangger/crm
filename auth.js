@@ -8,19 +8,45 @@ let authToken   = null;
 (async function initAuth() {
   const saved = localStorage.getItem('crm_token');
   if (saved) {
+    showWakingUp(true);
     try {
       const res = await apiFetch('/api/me', 'GET', null, saved);
       if (res.user) {
         authToken   = saved;
         currentUser = res.user;
+        showWakingUp(false);
         showApp();
         return;
       }
-    } catch { /* invalid token */ }
+    } catch { /* invalid or expired token */ }
+    showWakingUp(false);
     localStorage.removeItem('crm_token');
   }
   showAuthScreen('login');
 })();
+
+function showWakingUp(show) {
+  let el = document.getElementById('wakeup-banner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'wakeup-banner';
+    el.style.cssText = `
+      position:fixed;inset:0;z-index:9999;
+      background:#1a3530;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+      font-family:'Inter',-apple-system,sans-serif;
+    `;
+    el.innerHTML = `
+      <img src="logo.svg" style="width:56px;height:56px;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.3)" />
+      <div style="color:#f0ede5;font-size:18px;font-weight:800;letter-spacing:-.03em">Zewood CRM</div>
+      <div style="color:rgba(240,237,229,.5);font-size:13px">Starting up, please wait…</div>
+      <div style="width:40px;height:40px;border:3px solid rgba(240,237,229,.15);border-top-color:#a8d5c8;border-radius:50%;animation:spin .7s linear infinite"></div>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    `;
+    document.body.appendChild(el);
+  }
+  el.style.display = show ? 'flex' : 'none';
+}
 
 // ── Show/hide ─────────────────────────────────────────────────────────────────
 function showAuthScreen(mode) {
@@ -266,14 +292,32 @@ function logout() {
 }
 
 // ── API helper ────────────────────────────────────────────────────────────────
-async function apiFetch(url, method = 'GET', body = null, token = null) {
+async function apiFetch(url, method = 'GET', body = null, token = null, _retry = 0) {
   const headers = { 'Content-Type': 'application/json' };
   const tok = token || authToken;
   if (tok) headers['Authorization'] = `Bearer ${tok}`;
-  const res  = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
-  return data;
+  try {
+    const res  = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    // Server waking up — may return empty or non-JSON response
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch {
+      // Empty or non-JSON body — server still waking up, retry
+      if (_retry < 3) {
+        await new Promise(r => setTimeout(r, 3000));
+        return apiFetch(url, method, body, token, _retry + 1);
+      }
+      throw new Error('Server is starting up. Please wait a moment and try again.');
+    }
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  } catch (err) {
+    if (err.message === 'Failed to fetch' && _retry < 3) {
+      await new Promise(r => setTimeout(r, 3000));
+      return apiFetch(url, method, body, token, _retry + 1);
+    }
+    throw err;
+  }
 }
 
 function esc2(s) {
